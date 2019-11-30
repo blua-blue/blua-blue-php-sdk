@@ -8,11 +8,6 @@ class ClientTest extends TestCase
 {
     public static $instance;
 
-    /*function __construct($name = null, array $data = [], $dataName = '')
-    {
-        parent::__construct($name, $data, $dataName);
-        $this->instance = new Client('demo', 'sampleUser1');
-    }*/
 
     public static function setUpBeforeClass():void
     {
