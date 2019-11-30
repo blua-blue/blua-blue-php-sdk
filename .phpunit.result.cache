@@ -1,0 +1,1 @@
+C:37:"PHPUnit\Runner\DefaultTestResultCache":315:{a:2:{s:7:"defects";a:2:{s:41:"BluaBlue\ClientTest::testGetArticleBySlug";i:4;s:39:"BluaBlue\ClientTest::testGetArticleList";i:5;}s:5:"times";a:3:{s:41:"BluaBlue\ClientTest::testGetArticleBySlug";d:0.172;s:39:"BluaBlue\ClientTest::testGetArticleList";d:0.382;s:39:"BluaBlue\ClientTest::testGetArticleById";d:0.713;}}}
