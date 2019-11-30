@@ -2,6 +2,7 @@
     "name": "blua-blue/blua-blue-php-sdk",
     "description": "PHP SDK for blua.blue",
     "license": "GPL",
+    "version": "0.1.0",
     "autoload": {
         "psr-4": {
             "BluaBlue\\":"src/"

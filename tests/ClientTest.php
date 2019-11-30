@@ -13,6 +13,9 @@ class ClientTest extends TestCase
     {
         self::$instance = new Client('demo', 'sampleUser1');
     }
+    public function testAuthenticate(){
+        $this->assertInstanceOf(Client::class, self::$instance);
+    }
 
     public function testGetArticleBySlug()
     {
