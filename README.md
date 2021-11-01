@@ -1,8 +1,5 @@
 # blua.blue PHP SDK
 
-[![Build Status](https://travis-ci.com/blua-blue/blua-blue-php-sdk.svg?branch=master)](https://travis-ci.com/blua-blue/blua-blue-php-sdk)
-[![Test Coverage](https://api.codeclimate.com/v1/badges/5d8e1b32be829ece1e55/test_coverage)](https://codeclimate.com/github/blua-blue/blua-blue-php-sdk/test_coverage)
-
 The goal of this package is to enable fast, secure and simple integration of your blua.blue 
 content into own web domains. _NOTE_: this library also works for open-source installations of blua.blue
 
