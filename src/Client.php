@@ -4,9 +4,10 @@
 namespace BluaBlue;
 
 
-use GuzzleHttp\Exception\ClientException;
+use Exception;
 use GuzzleHttp\Psr7\Request;
-use Psr\Http\Message\ResponseInterface;
+use GuzzleHttp\Psr7\Response;
+use GuzzleHttp\HandlerStack;
 
 /**
  * Class Client
@@ -14,18 +15,15 @@ use Psr\Http\Message\ResponseInterface;
  */
 class Client
 {
-    /**
-     * @var string
-     */
-    private $apiUrl;
+
     /**
      * @var
      */
-    private $userName;
+    private $publicKey;
     /**
      * @var
      */
-    private $password;
+    private $privateKey;
     /**
      * @var \GuzzleHttp\Client
      */
@@ -42,82 +40,178 @@ class Client
     /**
      * Client constructor.
      *
-     * @param        $userName
-     * @param        $password
+     * @param $publicKey
+     * @param null $privateKey
      * @param string $baseUrl
-     *
-     * @throws \Exception
+     * @param string $version
+     * @throws Exception
      */
-    function __construct($userName, $password, $baseUrl = 'https://blua.blue/api.v1/')
+    function __construct($publicKey, $privateKey = null, string $baseUrl = 'https://blua.blue', string $version = 'v1', $mockHandler = false)
     {
-        $this->apiUrl = $baseUrl;
-        $this->userName = $userName;
-        $this->password = $password;
-        $this->guzzleClient = new \GuzzleHttp\Client([
-            'base_uri' => $baseUrl,
-            'timeout' => 2.0
-        ]);
-        $this->authenticate();
+        $this->publicKey = $publicKey;
+        $this->privateKey = $privateKey;
+        $guzzleConfig = [
+            'base_uri' => $baseUrl . '/api.' . $version . '/',
+            'timeout' => 2.0,
+            'headers' => ['Content-Type' => 'application/json']
+        ];
+        if($mockHandler){
+            $guzzleConfig['handler'] = HandlerStack::create($mockHandler);
+        }
+        $this->guzzleClient = new \GuzzleHttp\Client($guzzleConfig);
+    }
+
+
+    /**
+     * @throws Exception
+     */
+    function getArticlesByKeywords(string $keywords):array
+    {
+        return $this->articleResults($this->getWrapper('article/keyword/'.$keywords));
     }
 
     /**
-     * @param int  $offset
-     * @param int  $limit
-     * @param null $author
-     *
-     * @return mixed
-     * @throws \Exception
+     * @throws Exception
      */
-    function getArticleList($offset = 0, $limit = 100, $author = null)
+    function getOwnArticles(): array
     {
-        $endPoint = 'articleList?orderBy=date' . ($author ? '&author=' . $author : '');
-        try{
-            return $this->retrieveResult($this->guzzleClient->get($endPoint, [
-                'headers' => [
-                    'Authorization'     => 'Bearer ' . $this->token
-                ]
-            ]));
-        } catch (ClientException $e) {
-            throw new \Exception($e->getMessage(), 401);
-        }
+        return $this->articleResults($this->getWrapper('article/mine'));
+    }
 
+    /**
+     * @param $article
+     * @return Article
+     * @throws Exception
+     */
+    function createArticle($article): Article
+    {
+        if($article instanceof Article){
+            $article = $article->toArray();
+        }
+        return new Article($this->hasBodyWrapper('article', $article));
+    }
+
+    /**
+     * @param $article
+     * @return Article
+     * @throws Exception
+     */
+    function updateArticle($article): Article
+    {
+        return new Article($this->hasBodyWrapper('article', $article, 'PUT'));
     }
 
     /**
      * @param $articleIdOrSlug
      *
-     * @return mixed
-     * @throws \Exception
+     * @return Article
+     * @throws Exception
      */
-    function getArticle($articleIdOrSlug)
+    function getArticle($articleIdOrSlug): Article
     {
         $filter = (preg_match('/^[A-Z0-9]{32}$/', $articleIdOrSlug) === 1 ? 'id' : 'slug');
-        $endPoint = 'article?' . $filter . '=' . $articleIdOrSlug;
+        $endPoint = 'article/' . $filter . '/' . $articleIdOrSlug;
+        return new Article($this->getWrapper($endPoint));
+    }
+
+    /**
+     * @throws Exception
+     */
+    function getImages(): array
+    {
+        $images = $this->getWrapper('image');
+        $result = [];
+        foreach ($images as $image){
+            $result[] = new Image($image);
+        }
+        return $result;
+    }
+
+    /**
+     * @throws Exception
+     */
+    function registerImage(string $pathOrBase64, $mode='external')
+    {
+        return new Image($this->hasBodyWrapper('image', $pathOrBase64));
+    }
+
+    /**
+     * @throws Exception
+     */
+    function getCategories()
+    {
+        $categories =  $this->getWrapper('category');
+        $result = [];
+        foreach ($categories as $category){
+            $result[] = new Category($category);
+        }
+        return $result;
+    }
+
+    /**
+     * @return mixed
+     */
+    function getToken()
+    {
+        return $this->token;
+    }
+
+    /**
+     * @param string $token
+     */
+    function setToken(string $token): void
+    {
+        $this->token = $token;
+    }
+
+    /**
+     * @param $endpoint
+     * @param $body
+     * @param string $method
+     * @return mixed
+     * @throws Exception
+     */
+    private function hasBodyWrapper($endpoint, $body, $method='POST')
+    {
+        $jsonBody = json_encode($body);
+        $request = new Request($method, $endpoint,[
+            'Authorization' => 'Bearer ' . $this->token
+        ],$jsonBody);
         try{
-            return $this->retrieveResult($this->guzzleClient->get($endPoint, [
+            return $this->retrieveResult($this->guzzleClient->send($request));
+        }catch (GuzzleHttp\Exception\ClientException $e) {
+            throw new Exception($e->getMessage(), $e->getCode());
+        }
+
+    }
+
+
+    /**
+     * @throws Exception
+     */
+    private function getWrapper($endPoint)
+    {
+        try {
+            $guzzle = $this->guzzleClient->get($endPoint, [
                 'headers' => [
-                    'Authorization'     => 'Bearer ' . $this->token
+                    'Authorization' => 'Bearer ' . $this->token
                 ]
-            ]));
-        } catch (ClientException $e) {
-            throw new \Exception($e->getMessage(), 401);
+            ]);
+            return $this->retrieveResult($guzzle);
+        } catch (GuzzleHttp\Exception\ClientException $e) {
+            throw new Exception($e->getMessage(), $e->getCode());
         }
     }
 
     /**
      * @return bool
-     * @throws \Exception
+     * @throws Exception
      */
-    private function authenticate()
+    function authenticate()
     {
         try {
 
-            $results = $this->retrieveResult($this->guzzleClient->post('login', [
-                'json' => [
-                    'userName' => $this->userName,
-                    'password' => $this->password
-                ]
-            ]));
+            $results = $this->retrieveResult($this->guzzleClient->post('auth/' . $this->privateKey . '/' . $this->publicKey));
             if (isset($results['token'])) {
                 $this->token = $results['token'];
             }
@@ -125,20 +219,30 @@ class Client
                 $this->currentUser = $results['user'];
             }
         } catch (ClientException $e) {
-            throw new \Exception($e->getMessage(), 401);
+            throw new Exception($e->getMessage(), $e->getCode());
         }
         return true;
     }
 
+    private function articleResults($articles):array
+    {
+        $result = [];
+        foreach ($articles as $article){
+            $result[] = new Article($article);
+        }
+        return $result;
+    }
+
+
     /**
-     * @param ResponseInterface $call
+     * @param Response $call
      *
      * @return mixed
      */
-    private function retrieveResult(ResponseInterface $call)
+    private function retrieveResult(Response $call)
     {
-        return json_decode($call->getBody()
-                                ->getContents(), true);
+        $res = $call->getBody()->getContents();
+        return json_decode($res, true);
     }
 
 
