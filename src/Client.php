@@ -210,8 +210,7 @@ class Client
     function authenticate()
     {
         try {
-
-            $results = $this->retrieveResult($this->guzzleClient->post('auth/' . $this->privateKey . '/' . $this->publicKey));
+            $results = $this->hasBodyWrapper('auth/' . $this->publicKey, ['apiKey'=> $this->privateKey]);
             if (isset($results['token'])) {
                 $this->token = $results['token'];
             }
